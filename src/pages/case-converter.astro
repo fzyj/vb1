@@ -1,0 +1,275 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="变量命名转换">
+  <main class="min-h-screen bg-gray-50 py-10 px-4">
+    <div class="mx-auto max-w-2xl">
+      <h1 class="text-2xl font-bold text-gray-900 text-center mb-1">
+        变量命名格式转换
+      </h1>
+      <p class="text-sm text-gray-500 text-center mb-8">
+        支持 9 种命名格式互相转换，输入即转换
+      </p>
+
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">输入</label>
+        <textarea
+          id="input"
+          rows="3"
+          placeholder="输入变量名，自动识别格式并转换..."
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors resize-y font-mono mb-6"
+        ></textarea>
+
+        <!-- Detected format indicator -->
+        <div id="formatTag" class="mb-4 hidden">
+          <span id="formatLabel" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700"></span>
+        </div>
+
+        <!-- Outputs -->
+        <div id="outputs" class="space-y-2.5">
+          <!-- Populated by JS -->
+        </div>
+
+        <div id="emptyHint" class="text-center text-sm text-gray-400 py-8">
+          输入变量名后自动转换
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      <div id="errorMsg" class="mt-4 hidden">
+        <p class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script is:inline>
+  // ─── Case conversion functions ──────────────────────────────────
+
+  function splitWords(s) {
+    if (!s || typeof s !== 'string') return [];
+    var trimmed = s.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.indexOf('_') !== -1) {
+      return trimmed.split('_').filter(Boolean);
+    }
+    if (trimmed.indexOf('-') !== -1) {
+      return trimmed.split('-').filter(Boolean);
+    }
+    if (trimmed.indexOf('.') !== -1) {
+      return trimmed.split('.').filter(Boolean);
+    }
+    if (/\s/.test(trimmed)) {
+      return trimmed.split(/\s+/).filter(Boolean);
+    }
+
+    var result = trimmed;
+    result = result.replace(/([a-z])([A-Z])/g, '$1 $2');
+    result = result.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+    result = result.replace(/([a-zA-Z])(\d)/g, '$1 $2');
+    result = result.replace(/(\d)([a-zA-Z])/g, '$1 $2');
+    return result.split(/\s+/).filter(Boolean);
+  }
+
+  function toTitle(word) {
+    if (!word) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }
+
+  function toCamel(words) {
+    if (!words.length) return '';
+    return words.map(function (w, i) { return i === 0 ? w.toLowerCase() : toTitle(w); }).join('');
+  }
+  function toPascal(words) {
+    return words.map(function (w) { return toTitle(w); }).join('');
+  }
+  function toSnake(words) {
+    return words.map(function (w) { return w.toLowerCase(); }).join('_');
+  }
+  function toConstant(words) {
+    return words.map(function (w) { return w.toUpperCase(); }).join('_');
+  }
+  function toKebab(words) {
+    return words.map(function (w) { return w.toLowerCase(); }).join('-');
+  }
+  function toTrain(words) {
+    return words.map(function (w) { return toTitle(w); }).join('-');
+  }
+  function toDot(words) {
+    return words.map(function (w) { return w.toLowerCase(); }).join('.');
+  }
+  function toLower(words) {
+    return words.map(function (w) { return w.toLowerCase(); }).join(' ');
+  }
+  function toUpper(words) {
+    return words.map(function (w) { return w.toUpperCase(); }).join(' ');
+  }
+
+  function detectFormat(s) {
+    if (!s || typeof s !== 'string') return 'unknown';
+    var trimmed = s.trim();
+    if (!trimmed) return 'unknown';
+
+    if (trimmed.indexOf('_') !== -1) {
+      return trimmed === trimmed.toUpperCase() ? 'constant' : 'snake';
+    }
+    if (trimmed.indexOf('-') !== -1) {
+      var words = trimmed.split('-').filter(Boolean);
+      var isTrain = words.length > 0 && words.every(function (w) { return w[0] >= 'A' && w[0] <= 'Z'; });
+      return isTrain ? 'train' : 'kebab';
+    }
+    if (trimmed.indexOf('.') !== -1) return 'dot';
+    if (/\s/.test(trimmed)) {
+      return trimmed === trimmed.toUpperCase() ? 'upper' : 'lower';
+    }
+
+    var firstChar = trimmed[0];
+    if (firstChar >= 'A' && firstChar <= 'Z') return 'pascal';
+    return 'camel';
+  }
+
+  var FORMAT_LABELS = {
+    camel: 'camelCase',
+    pascal: 'PascalCase',
+    snake: 'snake_case',
+    constant: 'CONSTANT_CASE',
+    kebab: 'kebab-case',
+    train: 'Train-Case',
+    dot: 'dot.case',
+    lower: 'lower case',
+    upper: 'UPPER CASE',
+  };
+
+  var FORMAT_KEYS = ['camel', 'pascal', 'snake', 'constant', 'kebab', 'train', 'dot', 'lower', 'upper'];
+
+  function convertAll(str) {
+    if (!str || typeof str !== 'string' || !str.trim()) {
+      var empty = {};
+      FORMAT_KEYS.forEach(function (k) { empty[k] = ''; });
+      return empty;
+    }
+    var words = splitWords(str);
+    return {
+      camel: toCamel(words),
+      pascal: toPascal(words),
+      snake: toSnake(words),
+      constant: toConstant(words),
+      kebab: toKebab(words),
+      train: toTrain(words),
+      dot: toDot(words),
+      lower: toLower(words),
+      upper: toUpper(words),
+    };
+  }
+
+  // ─── DOM ────────────────────────────────────────────────────────
+
+  var inputEl = document.getElementById('input');
+  var outputsEl = document.getElementById('outputs');
+  var emptyHint = document.getElementById('emptyHint');
+  var formatTag = document.getElementById('formatTag');
+  var formatLabel = document.getElementById('formatLabel');
+  var errorMsg = document.getElementById('errorMsg');
+
+  function showError(msg) {
+    var p = errorMsg.querySelector('p');
+    p.textContent = msg;
+    errorMsg.classList.remove('hidden');
+    setTimeout(function () { errorMsg.classList.add('hidden'); }, 4000);
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () {
+        showError('复制失败');
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+      } catch (_) {
+        showError('复制失败，请手动复制');
+      }
+      document.body.removeChild(ta);
+    }
+  }
+
+  // Build output rows
+  function buildOutputs() {
+    outputsEl.innerHTML = '';
+    FORMAT_KEYS.forEach(function (key) {
+      var row = document.createElement('div');
+      row.className = 'flex items-center gap-2';
+
+      var label = document.createElement('span');
+      label.className = 'text-xs font-medium text-gray-500 w-32 shrink-0 text-right';
+      label.textContent = FORMAT_LABELS[key];
+
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.readOnly = true;
+      input.className = 'flex-1 min-w-0 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-mono outline-none';
+      input.setAttribute('data-format', key);
+
+      var btn = document.createElement('button');
+      btn.className = 'shrink-0 inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors cursor-pointer';
+      btn.textContent = '复制';
+
+      btn.addEventListener('click', function () {
+        var val = input.value;
+        if (!val) return;
+        copyToClipboard(val);
+        var orig = btn.textContent;
+        btn.textContent = '已复制!';
+        setTimeout(function () { btn.textContent = orig; }, 2000);
+      });
+
+      row.appendChild(label);
+      row.appendChild(input);
+      row.appendChild(btn);
+      outputsEl.appendChild(row);
+    });
+  }
+
+  function updateOutputs() {
+    var val = inputEl.value;
+    if (!val.trim()) {
+      emptyHint.classList.remove('hidden');
+      formatTag.classList.add('hidden');
+      var inputs = outputsEl.querySelectorAll('input');
+      inputs.forEach(function (el) { el.value = ''; });
+      return;
+    }
+
+    emptyHint.classList.add('hidden');
+    formatTag.classList.remove('hidden');
+
+    var fmt = detectFormat(val);
+    formatLabel.textContent = '识别格式: ' + FORMAT_LABELS[fmt];
+
+    var results = convertAll(val);
+    var inputs = outputsEl.querySelectorAll('input');
+    inputs.forEach(function (el) {
+      var key = el.getAttribute('data-format');
+      if (results[key] !== undefined) {
+        el.value = results[key];
+      }
+    });
+  }
+
+  // Initialize
+  buildOutputs();
+  inputEl.addEventListener('input', updateOutputs);
+
+  // Run once if input has value (e.g. back navigation)
+  if (inputEl.value.trim()) {
+    updateOutputs();
+  }
+</script>

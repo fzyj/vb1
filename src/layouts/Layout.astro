@@ -8,6 +8,8 @@ interface Props {
 
 const { title = '工具箱' } = Astro.props;
 const currentPath = Astro.url.pathname;
+const base = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, '');
+const normalizedPath = (currentPath.replace(base, '') || '/').replace(/\/$/, '') || '/';
 ---
 
 <!doctype html>
@@ -23,15 +25,15 @@ const currentPath = Astro.url.pathname;
 	<body>
 		<header class="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-200">
 			<div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-				<a href="/" class="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors no-underline">
+				<a href={base + '/'} class="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors no-underline">
 					🧰 工具箱
 				</a>
 				<nav class="flex items-center gap-1">
 					{tools.map((tool) => {
-						const isActive = currentPath === tool.href;
+						const isActive = normalizedPath === tool.href;
 						return (
 							<a
-								href={tool.href}
+								href={base + tool.href}
 								class={`text-sm px-3 py-1.5 rounded-md transition-colors ${
 									isActive
 										? 'text-blue-600 bg-blue-50 font-medium'

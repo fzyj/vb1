@@ -12,4 +12,10 @@ export const tools: Tool[] = [
     desc: '文本与文件转换',
     icon: '🔤',
   },
+  {
+    href: '/case-converter',
+    title: '变量命名转换',
+    desc: 'Camel/Snake/Kebab 等格式互转',
+    icon: '🔠',
+  },
 ];
