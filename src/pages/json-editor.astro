@@ -1,0 +1,159 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="JSON 编辑器">
+  <main class="bg-gray-50 py-10 px-4 overflow-auto" style="height: calc(100vh - 3.5rem); box-sizing: border-box">
+    <div class="mx-auto max-w-5xl">
+      <h1 class="text-2xl font-bold text-gray-900 text-center mb-1">JSON 编辑器</h1>
+      <p class="text-sm text-gray-500 text-center mb-6">格式化、校验与编辑 JSON，支持 Tree/Code/Form 三种视图</p>
+
+      <div class="flex items-center justify-center gap-3 mb-4">
+        <button
+          id="btnSample"
+          type="button"
+          class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer"
+        >
+          加载示例
+        </button>
+        <button
+          id="btnClear"
+          type="button"
+          class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+        >
+          清空
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div id="jsoneditor" class="h-[600px]"></div>
+      </div>
+
+      <div id="errorMsg" class="mt-4 hidden">
+        <p class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script is:inline>
+  var JSON_EDITOR_VERSION = '10.4.3';
+  var CDN_BASE = 'https://cdn.jsdelivr.net/npm/jsoneditor@' + JSON_EDITOR_VERSION + '/dist';
+
+  var container = document.getElementById('jsoneditor');
+  var editor = null;
+  var loading = false;
+
+  var btnSample = document.getElementById('btnSample');
+  var btnClear = document.getElementById('btnClear');
+  var errorMsg = document.getElementById('errorMsg');
+
+  function showError(msg) {
+    var p = errorMsg.querySelector('p');
+    p.textContent = msg;
+    errorMsg.classList.remove('hidden');
+    setTimeout(function () { errorMsg.classList.add('hidden'); }, 5000);
+  }
+
+  var sampleData = {
+    name: '示例项目',
+    version: '1.0.0',
+    description: '这是一个 JSON 示例数据',
+    author: {
+      name: '开发者',
+      email: 'dev@example.com',
+    },
+    tags: ['json', 'editor', '工具'],
+    dependencies: {
+      astro: '^6.0.0',
+      tailwindcss: '^4.0.0',
+    },
+    settings: {
+      debug: false,
+      port: 3000,
+      features: {
+        darkMode: true,
+        i18n: false,
+      },
+    },
+  };
+
+  function initEditor() {
+    try {
+      editor = new JSONEditor(container, {
+        mode: 'code',
+        modes: ['code', 'tree', 'view', 'form'],
+        mainMenuBar: true,
+        navigationBar: true,
+        statusBar: true,
+        error: function (err) {
+          showError('JSON 格式错误：' + (err ? err.message : '无效的 JSON'));
+        },
+      });
+      editor.set(sampleData);
+      btnSample.disabled = false;
+      btnClear.disabled = false;
+    } catch (e) {
+      showError('编辑器初始化失败：' + e.message);
+    }
+  }
+
+  function loadResources(callback) {
+    if (loading) return;
+    loading = true;
+
+    var cssLoaded = false;
+    var jsLoaded = false;
+
+    function tryInit() {
+      if (cssLoaded && jsLoaded) {
+        setTimeout(callback, 50);
+      }
+    }
+
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = CDN_BASE + '/jsoneditor.min.css';
+    link.onload = function () {
+      cssLoaded = true;
+      tryInit();
+    };
+    link.onerror = function () {
+      showError('加载编辑器样式失败');
+    };
+    document.head.appendChild(link);
+
+    var script = document.createElement('script');
+    script.src = CDN_BASE + '/jsoneditor.min.js';
+    script.onload = function () {
+      jsLoaded = true;
+      tryInit();
+    };
+    script.onerror = function () {
+      showError('加载编辑器脚本失败，请检查网络连接');
+    };
+    document.head.appendChild(script);
+  }
+
+  btnSample.addEventListener('click', function () {
+    if (!editor) return;
+    try {
+      editor.set(sampleData);
+    } catch (e) {
+      showError('加载示例失败：' + e.message);
+    }
+  });
+
+  btnClear.addEventListener('click', function () {
+    if (!editor) return;
+    try {
+      editor.set({});
+    } catch (e) {
+      showError('清空失败：' + e.message);
+    }
+  });
+
+  btnSample.disabled = true;
+  btnClear.disabled = true;
+  loadResources(initEditor);
+</script>

@@ -30,4 +30,10 @@ export const tools: Tool[] = [
     desc: '管理日常待办事项',
     icon: '✅',
   },
+  {
+    href: '/json-editor',
+    title: 'JSON 编辑器',
+    desc: '格式化、校验与编辑 JSON',
+    icon: '📋',
+  },
 ];
