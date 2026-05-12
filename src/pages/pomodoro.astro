@@ -1,0 +1,242 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="番茄钟">
+  <main class="bg-gray-50 py-10 px-4">
+    <div class="mx-auto max-w-md">
+      <h1 class="text-2xl font-bold text-gray-900 text-center mb-1">🍅 番茄钟</h1>
+      <p class="text-sm text-gray-500 text-center mb-8">专注工作，高效休息</p>
+
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <!-- Mode selector -->
+        <div class="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1">
+          <button class="mode-btn flex-1 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer border-0 bg-white text-gray-900 shadow-sm" data-mode="work">工作</button>
+          <button class="mode-btn flex-1 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer border-0 bg-transparent text-gray-600" data-mode="short">短休</button>
+          <button class="mode-btn flex-1 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer border-0 bg-transparent text-gray-600" data-mode="long">长休</button>
+        </div>
+
+        <!-- Timer circle -->
+        <div class="relative flex items-center justify-center mb-8">
+          <svg class="w-56 h-56 -rotate-90" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="54" fill="none" stroke="#f3f4f6" stroke-width="4" />
+            <circle id="progressCircle" cx="60" cy="60" r="54" fill="none" stroke="#ef4444" stroke-width="4" stroke-linecap="round" />
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span id="timerDisplay" class="text-5xl font-mono font-bold text-gray-900 tabular-nums">25:00</span>
+            <span id="statusLabel" class="text-sm text-gray-500 mt-1">准备开始</span>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center justify-center gap-3">
+          <button id="startPauseBtn" class="inline-flex items-center justify-center w-28 py-2.5 text-sm font-medium text-white rounded-lg transition-colors cursor-pointer border-0" style="background-color: #ef4444;">
+            开始
+          </button>
+          <button id="resetBtn" class="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer border-0">
+            重置
+          </button>
+        </div>
+      </div>
+
+      <!-- Session counter -->
+      <div class="mt-6 text-center">
+        <p id="sessionCounter" class="text-sm text-gray-500">
+          已完成 <span class="font-semibold text-gray-700">0</span> 个番茄
+        </p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script is:inline>
+  var CIRCUMFERENCE = 2 * Math.PI * 54;
+  var DURATIONS = { work: 25, short: 5, long: 15 };
+  var COLORS = { work: '#ef4444', short: '#22c55e', long: '#3b82f6' };
+
+  var currentMode = 'work';
+  var totalSeconds = DURATIONS.work * 60;
+  var remainingSeconds = totalSeconds;
+  var timerInterval = null;
+  var isRunning = false;
+  var sessionCount = 0;
+
+  var modeBtns = document.querySelectorAll('.mode-btn');
+  var progressCircle = document.getElementById('progressCircle');
+  var timerDisplay = document.getElementById('timerDisplay');
+  var statusLabel = document.getElementById('statusLabel');
+  var startPauseBtn = document.getElementById('startPauseBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var sessionCounterEl = document.getElementById('sessionCounter');
+
+  progressCircle.style.strokeDasharray = CIRCUMFERENCE;
+  progressCircle.style.strokeDashoffset = '0';
+
+  function formatTime(s) {
+    var m = Math.floor(s / 60);
+    var sec = s % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  function updateDisplay() {
+    timerDisplay.textContent = formatTime(remainingSeconds);
+    var progress = remainingSeconds / totalSeconds;
+    progressCircle.style.strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+
+    var labels = { work: '工作中', short: '短休中', long: '长休中' };
+    if (isRunning) {
+      statusLabel.textContent = labels[currentMode];
+    } else if (remainingSeconds < totalSeconds) {
+      statusLabel.textContent = '已暂停';
+    } else {
+      statusLabel.textContent = '准备开始';
+    }
+  }
+
+  function updatePageTitle() {
+    var names = { work: '工作', short: '短休', long: '长休' };
+    document.title = '🍅 ' + names[currentMode] + (isRunning ? ' ▶ ' + formatTime(remainingSeconds) : '');
+  }
+
+  function tick() {
+    if (remainingSeconds <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      isRunning = false;
+      updateStartBtnAppearance();
+      updateDisplay();
+      updatePageTitle();
+
+      if (currentMode === 'work') {
+        sessionCount++;
+        sessionCounterEl.innerHTML = '已完成 <span class="font-semibold text-gray-700">' + sessionCount + '</span> 个番茄';
+      }
+
+      playNotification();
+
+      var nextMode = currentMode === 'work' ? (sessionCount % 4 === 0 ? 'long' : 'short') : 'work';
+      setMode(nextMode);
+
+      return;
+    }
+
+    remainingSeconds--;
+    updateDisplay();
+    updatePageTitle();
+  }
+
+  function playNotification() {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var notes = [523.25, 659.25, 783.99, 1046.5];
+      var spacing = 0.22;
+      var duration = 0.45;
+
+      function playNote(freq, offset) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + offset);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + offset);
+        osc.stop(ctx.currentTime + offset + duration);
+      }
+
+      // 上行琶音
+      notes.forEach(function(freq, i) { playNote(freq, i * spacing); });
+      // 下行琶音
+      notes.reverse().forEach(function(freq, i) { playNote(freq, (notes.length + i) * spacing); });
+      // 收尾长音
+      var endOffset = notes.length * 2 * spacing;
+      playNote(1046.5, endOffset);
+      var longGain = ctx.createGain();
+      longGain.gain.setValueAtTime(0.25, ctx.currentTime + endOffset);
+      longGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + endOffset + 1.2);
+      var longOsc = ctx.createOscillator();
+      longOsc.type = 'sine';
+      longOsc.frequency.value = 523.25;
+      longOsc.connect(longGain);
+      longGain.connect(ctx.destination);
+      longOsc.start(ctx.currentTime + endOffset);
+      longOsc.stop(ctx.currentTime + endOffset + 1.2);
+    } catch (_) {}
+  }
+
+  function updateStartBtnAppearance() {
+    startPauseBtn.textContent = isRunning
+      ? '暂停'
+      : remainingSeconds < totalSeconds ? '继续' : '开始';
+    startPauseBtn.style.backgroundColor = isRunning ? '#eab308' : COLORS[currentMode];
+  }
+
+  function startTimer() {
+    if (remainingSeconds <= 0) {
+      remainingSeconds = totalSeconds;
+    }
+    timerInterval = setInterval(tick, 1000);
+    isRunning = true;
+    updateStartBtnAppearance();
+    updateDisplay();
+    updatePageTitle();
+  }
+
+  function pauseTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    isRunning = false;
+    updateStartBtnAppearance();
+    updateDisplay();
+    updatePageTitle();
+  }
+
+  function resetTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    isRunning = false;
+    remainingSeconds = totalSeconds;
+    progressCircle.style.strokeDashoffset = '0';
+    updateStartBtnAppearance();
+    updateDisplay();
+    updatePageTitle();
+  }
+
+  function setMode(mode) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    isRunning = false;
+    currentMode = mode;
+    totalSeconds = DURATIONS[mode] * 60;
+    remainingSeconds = totalSeconds;
+
+    modeBtns.forEach(function(btn) {
+      var isActive = btn.getAttribute('data-mode') === mode;
+      btn.className = 'mode-btn flex-1 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer border-0 ' +
+        (isActive ? 'bg-white text-gray-900 shadow-sm' : 'bg-transparent text-gray-600');
+    });
+
+    progressCircle.style.stroke = COLORS[mode];
+    startPauseBtn.style.backgroundColor = COLORS[mode];
+    startPauseBtn.textContent = '开始';
+    progressCircle.style.strokeDashoffset = '0';
+    updateDisplay();
+    updatePageTitle();
+  }
+
+  startPauseBtn.addEventListener('click', function() {
+    isRunning ? pauseTimer() : startTimer();
+  });
+
+  resetBtn.addEventListener('click', resetTimer);
+
+  modeBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      setMode(btn.getAttribute('data-mode'));
+    });
+  });
+
+  updateDisplay();
+  updatePageTitle();
+</script>

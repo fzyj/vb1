@@ -36,4 +36,10 @@ export const tools: Tool[] = [
     desc: '格式化、校验与编辑 JSON',
     icon: '📋',
   },
+  {
+    href: '/pomodoro',
+    title: '番茄钟',
+    desc: '专注工作计时器',
+    icon: '🍅',
+  },
 ];
