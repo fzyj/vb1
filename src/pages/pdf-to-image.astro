@@ -1,0 +1,681 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="PDF 转图片">
+  <main class="min-h-screen bg-gray-50 py-10 px-4">
+    <div class="mx-auto max-w-2xl">
+      <h1 class="text-2xl font-bold text-gray-900 text-center mb-1">
+        PDF 转图片
+      </h1>
+      <p class="text-sm text-gray-500 text-center mb-8">
+        逐页输出或合成长图，支持 PNG / JPEG
+      </p>
+
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <!-- File Input -->
+        <div class="mb-5">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">选择 PDF 文件</label>
+          <div class="flex items-center gap-3">
+            <label class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors duration-150 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2">
+              <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              选择文件
+              <input type="file" id="fileInput" accept=".pdf,application/pdf" class="hidden" />
+            </label>
+            <span id="fileInfo" class="text-sm text-gray-500 truncate max-w-xs"></span>
+          </div>
+        </div>
+
+        <!-- Options Row: Format + Scale -->
+        <div class="flex flex-wrap items-start gap-6 mb-5">
+          <!-- Format Selector -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">输出格式</label>
+            <div class="flex gap-1">
+              <button id="fmtPNG" class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-blue-500 text-blue-600 bg-blue-50" data-format="png">PNG</button>
+              <button id="fmtJPEG" class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50" data-format="jpeg">JPEG</button>
+            </div>
+            <div id="qualityRow" class="mt-2 hidden">
+              <label class="block text-xs text-gray-500 mb-1">
+                质量: <span id="qualityLabel">0.85</span>
+              </label>
+              <input type="range" id="qualitySlider" min="0.1" max="1.0" step="0.05" value="0.85" class="w-32 h-2 accent-blue-600 cursor-pointer" />
+            </div>
+          </div>
+
+          <!-- Scale Selector -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">缩放</label>
+            <div class="flex items-center gap-1 flex-wrap">
+              <button id="scale1" class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-blue-500 text-blue-600 bg-blue-50" data-scale="1">1x</button>
+              <button id="scale2" class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50" data-scale="2">2x</button>
+              <button id="scale3" class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50" data-scale="3">3x</button>
+              <span class="text-xs text-gray-400 ml-1.5">自定义:</span>
+              <input type="number" id="customScale" value="1" min="0.5" max="8" step="0.5" class="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Watermark Options -->
+        <div class="mb-5">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">水印</label>
+          <div class="flex gap-1">
+            <button id="wmNone" class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-blue-500 text-blue-600 bg-blue-50" data-wm="none">无水印</button>
+            <button id="wmDefault" class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50" data-wm="default">默认水印</button>
+            <button id="wmCustom" class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50" data-wm="custom">自定义水印</button>
+          </div>
+          <div id="wmCustomRow" class="mt-2 hidden">
+            <input type="text" id="wmCustomInput" placeholder="输入水印文字" maxlength="20" class="w-56 rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors" />
+          </div>
+        </div>
+
+        <!-- Mode Tabs -->
+        <div class="flex border-b border-gray-200 mb-5" id="modeBar">
+          <button id="modePages" class="px-4 py-2.5 text-sm font-medium border-b-2 border-blue-500 text-blue-600 transition-colors duration-150" data-mode="pages">逐页输出</button>
+          <button id="modeComposite" class="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors duration-150" data-mode="composite">合成长图</button>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="hidden text-center py-8">
+          <svg class="spinner inline-block w-6 h-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <p class="text-sm text-gray-500 mt-2" id="loadingText">渲染中...</p>
+        </div>
+
+        <!-- Empty Hint -->
+        <div id="emptyHint" class="text-center text-sm text-gray-400 py-8">
+          请选择 PDF 文件
+        </div>
+
+        <!-- Preview Area -->
+        <div id="preview" class="hidden"></div>
+
+        <!-- Action Buttons -->
+        <div id="actions" class="hidden mt-4 flex justify-end gap-2">
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      <div id="errorMsg" class="mt-4 hidden">
+        <p class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style is:inline>
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { animation: spin 0.8s linear infinite; }
+</style>
+<script is:inline>
+  // ─── Load PDF.js dynamically ────────────────────────────────────
+  (function () {
+    var PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    var scriptEl = document.createElement('script');
+    scriptEl.src = PDFJS_URL;
+    scriptEl.onload = boot;
+    scriptEl.onerror = function () {
+      document.getElementById('emptyHint').textContent = 'PDF.js 加载失败，请检查网络连接后刷新页面';
+    };
+    document.head.appendChild(scriptEl);
+  })();
+
+  function boot() {
+    // ─── PDF.js worker ────────────────────────────────────────────
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+    // ─── Utility functions ────────────────────────────────────────
+
+    function showError(msg) {
+    var el = document.getElementById('errorMsg');
+    var p = el.querySelector('p');
+    p.textContent = msg;
+    el.classList.remove('hidden');
+    setTimeout(function () { el.classList.add('hidden'); }, 6000);
+  }
+
+  function hideError() {
+    document.getElementById('errorMsg').classList.add('hidden');
+  }
+
+  // ─── State ──────────────────────────────────────────────────────
+
+  var pdfDoc = null;
+  var pdfFilename = '';
+  var isRendering = false;
+  var currentMode = 'pages';
+  var currentFormat = 'png';
+  var currentScale = 1;
+  var currentQuality = 0.85;
+  var watermarkMode = 'none';
+  var customWatermarkText = '';
+  var DEFAULT_WATERMARK = '仅供参考';
+  var pageCanvases = [];
+  var compositeCanvas = null;
+
+  // ─── DOM refs ───────────────────────────────────────────────────
+
+  var fileInput = document.getElementById('fileInput');
+  var fileInfo = document.getElementById('fileInfo');
+
+  var fmtPNG = document.getElementById('fmtPNG');
+  var fmtJPEG = document.getElementById('fmtJPEG');
+  var qualityRow = document.getElementById('qualityRow');
+  var qualitySlider = document.getElementById('qualitySlider');
+  var qualityLabel = document.getElementById('qualityLabel');
+
+  var scale1 = document.getElementById('scale1');
+  var scale2 = document.getElementById('scale2');
+  var scale3 = document.getElementById('scale3');
+  var customScale = document.getElementById('customScale');
+  var allScaleBtns = [scale1, scale2, scale3];
+
+  var modePages = document.getElementById('modePages');
+  var modeComposite = document.getElementById('modeComposite');
+
+  var loadingEl = document.getElementById('loading');
+  var loadingText = document.getElementById('loadingText');
+  var emptyHint = document.getElementById('emptyHint');
+  var preview = document.getElementById('preview');
+  var actions = document.getElementById('actions');
+
+  var wmNone = document.getElementById('wmNone');
+  var wmDefault = document.getElementById('wmDefault');
+  var wmCustom = document.getElementById('wmCustom');
+  var wmCustomRow = document.getElementById('wmCustomRow');
+  var wmCustomInput = document.getElementById('wmCustomInput');
+
+  // ─── Getters ────────────────────────────────────────────────────
+
+  function getScale() { return currentScale; }
+  function getMode() { return currentMode; }
+  function getExt() { return currentFormat === 'jpeg' ? '.jpg' : '.png'; }
+
+  // ─── UI helpers ─────────────────────────────────────────────────
+
+  function showLoading(msg) {
+    loadingText.textContent = msg || '渲染中...';
+    loadingEl.classList.remove('hidden');
+    emptyHint.classList.add('hidden');
+    preview.classList.add('hidden');
+    actions.classList.add('hidden');
+  }
+
+  function showEmpty() {
+    emptyHint.classList.remove('hidden');
+    preview.classList.add('hidden');
+    actions.classList.add('hidden');
+    loadingEl.classList.add('hidden');
+  }
+
+  function showPreview() {
+    emptyHint.classList.add('hidden');
+    preview.classList.remove('hidden');
+    actions.classList.remove('hidden');
+    loadingEl.classList.add('hidden');
+  }
+
+  // ─── Button state helpers ───────────────────────────────────────
+
+  function setActiveFmt(fmt) {
+    var isPNG = fmt === 'png';
+    fmtPNG.className = isPNG
+      ? 'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-blue-500 text-blue-600 bg-blue-50'
+      : 'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50';
+    fmtJPEG.className = !isPNG
+      ? 'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-blue-500 text-blue-600 bg-blue-50'
+      : 'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50';
+    qualityRow.classList.toggle('hidden', isPNG);
+  }
+
+  function setActiveScale(value) {
+    allScaleBtns.forEach(function (btn) {
+      var btnScale = parseFloat(btn.getAttribute('data-scale'));
+      var active = btnScale === value;
+      btn.className = active
+        ? 'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-blue-500 text-blue-600 bg-blue-50'
+        : 'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50';
+    });
+    customScale.value = value;
+  }
+
+  function setActiveMode(mode) {
+    var isPages = mode === 'pages';
+    modePages.className = isPages
+      ? 'px-4 py-2.5 text-sm font-medium border-b-2 border-blue-500 text-blue-600 transition-colors duration-150'
+      : 'px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors duration-150';
+    modeComposite.className = !isPages
+      ? 'px-4 py-2.5 text-sm font-medium border-b-2 border-blue-500 text-blue-600 transition-colors duration-150'
+      : 'px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors duration-150';
+  }
+
+  function setActiveWM(mode) {
+    var activeClass = 'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-blue-500 text-blue-600 bg-blue-50';
+    var inactiveClass = 'px-3 py-1.5 text-sm font-medium rounded-md border transition-colors duration-150 border-gray-200 text-gray-600 hover:bg-gray-50';
+    wmNone.className = mode === 'none' ? activeClass : inactiveClass;
+    wmDefault.className = mode === 'default' ? activeClass : inactiveClass;
+    wmCustom.className = mode === 'custom' ? activeClass : inactiveClass;
+    wmCustomRow.classList.toggle('hidden', mode !== 'custom');
+  }
+
+  // ─── Download helpers ───────────────────────────────────────────
+
+  function downloadCanvas(canvas, filename) {
+    var mimeType = currentFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+    var fullName = filename + getExt();
+    if (canvas.toBlob) {
+      canvas.toBlob(function (blob) {
+        triggerDownload(blob, fullName);
+      }, mimeType, currentFormat === 'jpeg' ? currentQuality : undefined);
+    } else {
+      var dataUrl = canvas.toDataURL(mimeType, currentFormat === 'jpeg' ? currentQuality : undefined);
+      triggerDownloadDataUrl(dataUrl, fullName);
+    }
+  }
+
+  function triggerDownload(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function triggerDownloadDataUrl(dataUrl, filename) {
+    var a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // ─── Watermark ──────────────────────────────────────────────────
+
+  function drawWatermark(canvas, text) {
+    var ctx = canvas.getContext('2d');
+    ctx.save();
+    var cw = canvas.width;
+    var ch = canvas.height;
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#000000';
+    var fontSize = Math.max(20, Math.round(Math.min(cw, ch) / 10));
+    ctx.font = 'bold ' + fontSize + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.translate(cw / 2, ch / 2);
+    ctx.rotate(-Math.PI / 5);
+    var diagonal = Math.ceil(Math.sqrt(cw * cw + ch * ch));
+    var gapX = fontSize * 7;
+    var gapY = fontSize * 3;
+    for (var x = -diagonal; x <= diagonal; x += gapX) {
+      for (var y = -diagonal; y <= diagonal; y += gapY) {
+        ctx.fillText(text, x, y);
+      }
+    }
+    ctx.restore();
+  }
+
+  function applyWatermark(canvas) {
+    var text = watermarkMode === 'custom' ? customWatermarkText : DEFAULT_WATERMARK;
+    if (!text) return;
+    drawWatermark(canvas, text);
+  }
+
+  // ─── Render functions ───────────────────────────────────────────
+
+  async function renderAll() {
+    if (isRendering) return;
+    isRendering = true;
+    hideError();
+    showLoading(currentMode === 'pages' ? '逐页渲染中...' : '合成长图渲染中...');
+    preview.innerHTML = '';
+    actions.innerHTML = '';
+    pageCanvases = [];
+    compositeCanvas = null;
+
+    try {
+      var numPages = pdfDoc.numPages;
+
+      // Get all pages
+      var pages = [];
+      for (var i = 1; i <= numPages; i++) {
+        var p = await pdfDoc.getPage(i);
+        pages.push(p);
+      }
+
+      // Get viewports
+      var scale = getScale();
+      var viewports = pages.map(function (pg) { return pg.getViewport({ scale: scale }); });
+
+      if (getMode() === 'pages') {
+        await renderPagesView(pages, viewports, numPages);
+      } else {
+        await renderCompositeView(pages, viewports, numPages);
+      }
+
+      showPreview();
+      addActionButtons();
+    } catch (err) {
+      console.error(err);
+      showError('渲染失败: ' + (err.message || '未知错误'));
+      showEmpty();
+    }
+
+    isRendering = false;
+  }
+
+  async function renderPagesView(pages, viewports, numPages) {
+    for (var i = 0; i < pages.length; i++) {
+      var vp = viewports[i];
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(vp.width);
+      canvas.height = Math.ceil(vp.height);
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = 'auto';
+      canvas.style.display = 'block';
+      var ctx = canvas.getContext('2d');
+
+      await pages[i].render({ canvasContext: ctx, viewport: vp }).promise;
+      if (watermarkMode !== 'none') applyWatermark(canvas);
+      pageCanvases.push(canvas);
+
+      // Build UI for this page
+      var wrapper = document.createElement('div');
+      wrapper.className = 'mb-5';
+
+      var header = document.createElement('div');
+      header.className = 'flex items-center justify-between mb-1.5';
+
+      var label = document.createElement('span');
+      label.className = 'text-xs text-gray-500';
+      label.textContent = '第 ' + (i + 1) + ' 页 / 共 ' + numPages + ' 页';
+
+      var dlBtn = document.createElement('button');
+      dlBtn.className = 'inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors duration-150 cursor-pointer';
+      dlBtn.textContent = '下载此页';
+      (function (pageIdx, cvs) {
+        dlBtn.addEventListener('click', function () {
+          downloadCanvas(cvs, pdfFilename + '_page_' + (pageIdx + 1));
+        });
+      })(i, canvas);
+
+      header.appendChild(label);
+      header.appendChild(dlBtn);
+
+      var imgWrap = document.createElement('div');
+      imgWrap.className = 'border border-gray-200 rounded-lg overflow-hidden bg-white';
+      imgWrap.appendChild(canvas);
+
+      wrapper.appendChild(header);
+      wrapper.appendChild(imgWrap);
+      preview.appendChild(wrapper);
+    }
+  }
+
+  async function renderCompositeView(pages, viewports, numPages) {
+    // Calculate dimensions
+    var maxWidth = 0;
+    var totalHeight = 0;
+    for (var i = 0; i < viewports.length; i++) {
+      maxWidth = Math.max(maxWidth, viewports[i].width);
+      totalHeight += viewports[i].height;
+    }
+
+    var cw = Math.ceil(maxWidth);
+    var ch = Math.ceil(totalHeight);
+
+    // Max canvas size check
+    var MAX_DIM = 16384;
+    if (cw > MAX_DIM || ch > MAX_DIM) {
+      showError(
+        '合成长图尺寸过大 (' + cw + 'x' + ch + ' px)，已超浏览器 Canvas 上限 (' + MAX_DIM + ' px)。请降低缩放比例或改用逐页输出。'
+      );
+      throw new Error('Canvas too large');
+    }
+
+    var canvas = document.createElement('canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    canvas.style.maxWidth = '100%';
+    canvas.style.height = 'auto';
+    canvas.style.display = 'block';
+    var ctx = canvas.getContext('2d');
+
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cw, ch);
+
+    // Render each page onto the composite
+    var y = 0;
+    for (var j = 0; j < pages.length; j++) {
+      var vp = viewports[j];
+
+      var tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = Math.ceil(vp.width);
+      tmpCanvas.height = Math.ceil(vp.height);
+      var tmpCtx = tmpCanvas.getContext('2d');
+
+      await pages[j].render({ canvasContext: tmpCtx, viewport: vp }).promise;
+
+      var x = Math.floor((cw - tmpCanvas.width) / 2);
+      ctx.drawImage(tmpCanvas, x, y);
+      y += tmpCanvas.height;
+    }
+
+    compositeCanvas = canvas;
+    if (watermarkMode !== 'none') applyWatermark(compositeCanvas);
+
+    // Preview UI
+    var header = document.createElement('div');
+    header.className = 'mb-1.5';
+    var label = document.createElement('span');
+    label.className = 'text-xs text-gray-500';
+    label.textContent = '共 ' + numPages + ' 页 · ' + cw + ' × ' + ch + ' px';
+    header.appendChild(label);
+    preview.appendChild(header);
+
+    var imgWrap = document.createElement('div');
+    imgWrap.className = 'border border-gray-200 rounded-lg overflow-auto bg-white max-h-96';
+    var imgInner = document.createElement('div');
+    imgInner.style.minWidth = '100%';
+    imgInner.style.width = 'fit-content';
+    imgInner.appendChild(canvas);
+    imgWrap.appendChild(imgInner);
+    preview.appendChild(imgWrap);
+  }
+
+  // ─── Action buttons ─────────────────────────────────────────────
+
+  function addActionButtons() {
+    actions.innerHTML = '';
+    if (getMode() === 'pages') {
+      var btnAll = document.createElement('button');
+      btnAll.id = 'btnDownloadAll';
+      btnAll.className = 'inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 cursor-pointer';
+      btnAll.innerHTML = '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>下载全部页面';
+      btnAll.addEventListener('click', function () {
+        downloadAllPages();
+      });
+      actions.appendChild(btnAll);
+    } else {
+      var btnComp = document.createElement('button');
+      btnComp.id = 'btnDownloadComposite';
+      btnComp.className = 'inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 cursor-pointer';
+      btnComp.innerHTML = '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>下载合成长图';
+      btnComp.addEventListener('click', function () {
+        if (compositeCanvas) {
+          downloadCanvas(compositeCanvas, pdfFilename + '_composite');
+        }
+      });
+      actions.appendChild(btnComp);
+    }
+  }
+
+  function downloadAllPages() {
+    if (pageCanvases.length === 0) return;
+    var idx = 0;
+    function next() {
+      if (idx >= pageCanvases.length) return;
+      var canvas = pageCanvases[idx];
+      downloadCanvas(canvas, pdfFilename + '_page_' + (idx + 1));
+      idx++;
+      setTimeout(next, 300);
+    }
+    next();
+  }
+
+  // ─── Load PDF ───────────────────────────────────────────────────
+
+  function loadPDF(file) {
+    hideError();
+    var name = file.name;
+    var lastDot = name.lastIndexOf('.');
+    pdfFilename = lastDot > 0 ? name.substring(0, lastDot) : name;
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var typedarray = new Uint8Array(e.target.result);
+      var loadingTask = pdfjsLib.getDocument({ data: typedarray });
+      loadingTask.promise.then(function (pdf) {
+        pdfDoc = pdf;
+        fileInfo.textContent = name + ' (' + pdf.numPages + ' 页)';
+        renderAll();
+      }).catch(function (err) {
+        pdfDoc = null;
+        fileInfo.textContent = '';
+        showEmpty();
+        showError('PDF 加载失败，文件可能已损坏或受密码保护');
+        console.error(err);
+      });
+    };
+    reader.onerror = function () {
+      showError('文件读取失败');
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ─── Event handlers ─────────────────────────────────────────────
+
+  fileInput.addEventListener('change', function () {
+    var file = fileInput.files[0];
+    if (!file) {
+      fileInfo.textContent = '';
+      pdfDoc = null;
+      pdfFilename = '';
+      pageCanvases = [];
+      compositeCanvas = null;
+      showEmpty();
+      return;
+    }
+    if (file.type && file.type !== 'application/pdf') {
+      showError('请选择 PDF 文件');
+      fileInput.value = '';
+      return;
+    }
+    loadPDF(file);
+  });
+
+  // Format buttons
+  fmtPNG.addEventListener('click', function () {
+    if (currentFormat === 'png') return;
+    currentFormat = 'png';
+    setActiveFmt('png');
+  });
+
+  fmtJPEG.addEventListener('click', function () {
+    if (currentFormat === 'jpeg') return;
+    currentFormat = 'jpeg';
+    setActiveFmt('jpeg');
+  });
+
+  // Quality slider
+  qualitySlider.addEventListener('input', function () {
+    currentQuality = parseFloat(qualitySlider.value);
+    qualityLabel.textContent = currentQuality.toFixed(2);
+  });
+
+  // Scale preset buttons
+  allScaleBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var val = parseFloat(btn.getAttribute('data-scale'));
+      if (currentScale === val) return;
+      currentScale = val;
+      setActiveScale(val);
+      if (pdfDoc) renderAll();
+    });
+  });
+
+  // Custom scale input
+  customScale.addEventListener('change', function () {
+    var val = parseFloat(customScale.value);
+    if (isNaN(val) || val < 0.1) {
+      customScale.value = currentScale;
+      return;
+    }
+    if (val > 8) val = 8;
+    customScale.value = val;
+    if (currentScale === val) return;
+    currentScale = val;
+    setActiveScale(val);
+    if (pdfDoc) renderAll();
+  });
+
+  // Mode tabs
+  modePages.addEventListener('click', function () {
+    if (currentMode === 'pages') return;
+    currentMode = 'pages';
+    setActiveMode('pages');
+    if (pdfDoc) renderAll();
+  });
+
+  modeComposite.addEventListener('click', function () {
+    if (currentMode === 'composite') return;
+    currentMode = 'composite';
+    setActiveMode('composite');
+    if (pdfDoc) renderAll();
+  });
+
+  // Watermark buttons
+  wmNone.addEventListener('click', function () {
+    if (watermarkMode === 'none') return;
+    watermarkMode = 'none';
+    setActiveWM('none');
+    if (pdfDoc) renderAll();
+  });
+
+  wmDefault.addEventListener('click', function () {
+    if (watermarkMode === 'default') return;
+    watermarkMode = 'default';
+    setActiveWM('default');
+    if (pdfDoc) renderAll();
+  });
+
+  wmCustom.addEventListener('click', function () {
+    if (watermarkMode === 'custom') return;
+    watermarkMode = 'custom';
+    customWatermarkText = wmCustomInput.value.trim();
+    setActiveWM('custom');
+    if (pdfDoc) renderAll();
+  });
+
+  wmCustomInput.addEventListener('input', function () {
+    customWatermarkText = wmCustomInput.value.trim();
+  });
+
+  wmCustomInput.addEventListener('change', function () {
+    customWatermarkText = wmCustomInput.value.trim();
+    if (watermarkMode === 'custom' && pdfDoc) renderAll();
+  });
+
+  // ─── Initial state ────────────────────────────────────────────
+
+  setActiveWM('none');
+  showEmpty();
+  }
+</script>

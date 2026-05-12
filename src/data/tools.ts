@@ -18,4 +18,10 @@ export const tools: Tool[] = [
     desc: 'Camel/Snake/Kebab 等格式互转',
     icon: '🔠',
   },
+  {
+    href: '/pdf-to-image',
+    title: 'PDF 转图片',
+    desc: '逐页输出或合成长图',
+    icon: '🖼️',
+  },
 ];
