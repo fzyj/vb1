@@ -24,4 +24,10 @@ export const tools: Tool[] = [
     desc: '逐页输出或合成长图',
     icon: '🖼️',
   },
+  {
+    href: '/todo',
+    title: '待办清单',
+    desc: '管理日常待办事项',
+    icon: '✅',
+  },
 ];
