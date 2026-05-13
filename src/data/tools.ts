@@ -37,6 +37,12 @@ export const tools: Tool[] = [
     icon: '📋',
   },
   {
+    href: '/markdown',
+    title: 'Markdown 编辑器',
+    desc: '实时预览与导出 HTML',
+    icon: '📝',
+  },
+  {
     href: '/pomodoro',
     title: '番茄钟',
     desc: '专注工作计时器',
