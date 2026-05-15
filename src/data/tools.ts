@@ -48,4 +48,10 @@ export const tools: Tool[] = [
     desc: '专注工作计时器',
     icon: '🍅',
   },
+  {
+    href: '/currency',
+    title: '货币汇率转换',
+    desc: '实时汇率换算、多币对比与历史查询',
+    icon: '💱',
+  },
 ];
