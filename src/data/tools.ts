@@ -7,6 +7,12 @@ export interface Tool {
 
 export const tools: Tool[] = [
   {
+    href: '/bmi',
+    title: 'BMI 计算器',
+    desc: '身体质量指数计算',
+    icon: '⚖️',
+  },
+  {
     href: '/base64',
     title: 'Base64 编码/解码',
     desc: '文本与文件转换',
