@@ -1,5 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+const base = import.meta.env.BASE_URL;
+const apiBase = `${base}api/frankfurter`;
 ---
 
 <Layout title="货币汇率转换">
@@ -133,9 +136,11 @@ import Layout from '../layouts/Layout.astro';
   </main>
 </Layout>
 
+<span id="__api_config" data-api-base={apiBase} hidden></span>
+
 <script is:inline>
   // ─── API 常量 ────────────────────────────────────────────────
-  var API_BASE = 'https://api.frankfurter.app';
+  var API_BASE = document.getElementById('__api_config').dataset.apiBase;
 
   // ─── 备用货币列表（API 失败时使用） ──────────────────────────
   var FALLBACK_CURRENCIES = {
