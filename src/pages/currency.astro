@@ -1,0 +1,680 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="货币汇率转换">
+  <main class="bg-gray-50 py-10 px-4">
+    <div class="mx-auto max-w-2xl">
+      <h1 class="text-2xl font-bold text-gray-900 text-center mb-1">
+        货币汇率转换
+      </h1>
+      <p class="text-sm text-gray-500 text-center mb-8">
+        实时汇率查询与转换，支持历史数据
+      </p>
+
+      <!-- Tab Navigation -->
+      <div class="flex justify-center gap-1 mb-6">
+        <button id="tabConvert" class="tab-btn px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer border-0 bg-blue-600 text-white" data-tab="convert">汇率换算</button>
+        <button id="tabCompare" class="tab-btn px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer border-0 bg-transparent text-gray-600 hover:bg-gray-100" data-tab="compare">多币对比</button>
+        <button id="tabHistory" class="tab-btn px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer border-0 bg-transparent text-gray-600 hover:bg-gray-100" data-tab="history">历史汇率</button>
+      </div>
+
+      <!-- Tab 1: 汇率换算 -->
+      <div id="panelConvert" class="tab-panel">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <!-- Currency Selectors -->
+          <div class="flex items-end gap-2 mb-4">
+            <div class="flex-1">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">源货币</label>
+              <div id="convertFromPicker" class="currency-picker-container"></div>
+            </div>
+            <button id="swapBtn" class="shrink-0 mb-1 w-10 h-10 flex items-center justify-center rounded-full border border-gray-300 bg-white hover:bg-gray-50 transition-colors cursor-pointer text-lg" title="交换货币">↔</button>
+            <div class="flex-1">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">目标货币</label>
+              <div id="convertToPicker" class="currency-picker-container"></div>
+            </div>
+          </div>
+
+          <!-- Amount Input -->
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">金额</label>
+          <div class="relative mb-6">
+            <input id="convertAmount" type="number" min="0" step="any" placeholder="输入金额..." value="1" class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-16 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors" />
+            <button id="clearAmountBtn" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600 cursor-pointer border-0 bg-transparent">清空</button>
+          </div>
+
+          <!-- Result -->
+          <div id="convertResult" class="hidden rounded-lg bg-blue-50 border border-blue-100 p-4">
+            <div id="convertResultRate" class="text-sm text-blue-700 mb-1"></div>
+            <div id="convertResultAmount" class="text-xl font-bold text-gray-900"></div>
+            <div id="convertResultDate" class="text-xs text-gray-500 mt-1"></div>
+          </div>
+
+          <!-- Loading -->
+          <div id="convertLoading" class="hidden text-center py-6 text-sm text-gray-400">加载中...</div>
+
+          <!-- Error -->
+          <div id="convertError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-4"></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: 多币对比 -->
+      <div id="panelCompare" class="tab-panel hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">源货币</label>
+            <div id="compareFromPicker" class="currency-picker-container"></div>
+          </div>
+
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">金额</label>
+          <input id="compareAmount" type="number" min="0" step="any" placeholder="输入金额..." value="1" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors mb-4" />
+
+          <!-- Table Controls -->
+          <div class="flex items-center gap-3 mb-3">
+            <select id="compareSort" class="text-sm rounded-md border border-gray-300 px-2 py-1.5 bg-white outline-none focus:border-blue-500">
+              <option value="code">按代码排序</option>
+              <option value="name">按名称排序</option>
+              </select>
+            <input id="compareFilter" type="text" placeholder="筛选..." class="flex-1 text-sm rounded-md border border-gray-300 px-2 py-1.5 outline-none focus:border-blue-500" />
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-y-auto max-h-96 border border-gray-200 rounded-lg">
+            <table class="w-full text-sm">
+              <thead class="sticky top-0 bg-gray-50">
+                <tr>
+                  <th class="text-left px-3 py-2 font-medium text-gray-600">货币</th>
+                  <th class="text-left px-3 py-2 font-medium text-gray-600">代码</th>
+                  <th class="text-right px-3 py-2 font-medium text-gray-600">转换结果</th>
+                </tr>
+              </thead>
+              <tbody id="compareTableBody">
+                <tr><td colspan="3" class="text-center py-8 text-gray-400">输入金额后自动查询</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="compareLoading" class="hidden text-center py-4 text-sm text-gray-400">加载中...</div>
+          <div id="compareError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-4"></div>
+        </div>
+      </div>
+
+      <!-- Tab 3: 历史汇率 -->
+      <div id="panelHistory" class="tab-panel hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="flex items-end gap-2 mb-4">
+            <div class="flex-1">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">源货币</label>
+              <div id="historyFromPicker" class="currency-picker-container"></div>
+            </div>
+            <button id="historySwapBtn" class="shrink-0 mb-1 w-10 h-10 flex items-center justify-center rounded-full border border-gray-300 bg-white hover:bg-gray-50 transition-colors cursor-pointer text-lg" title="交换货币">↔</button>
+            <div class="flex-1">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">目标货币</label>
+              <div id="historyToPicker" class="currency-picker-container"></div>
+            </div>
+          </div>
+
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">历史日期</label>
+          <input id="historyDate" type="date" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors mb-4" />
+
+          <div id="historyResult" class="hidden rounded-lg bg-blue-50 border border-blue-100 p-4 mb-4">
+            <div id="historyResultRate" class="text-sm text-blue-700 mb-1"></div>
+            <div id="historyResultCompare" class="text-sm text-gray-600 mb-1"></div>
+          </div>
+
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">金额（可选）</label>
+          <input id="historyAmount" type="number" min="0" step="any" placeholder="可选输入金额..." class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors mb-4" />
+          <div id="historyAmountResult" class="hidden text-lg font-bold text-gray-900 mb-2"></div>
+
+          <div id="historyLoading" class="hidden text-center py-6 text-sm text-gray-400">加载中...</div>
+          <div id="historyError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-4"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script is:inline>
+  // ─── API 常量 ────────────────────────────────────────────────
+  var API_BASE = 'https://api.frankfurter.app';
+
+  // ─── 备用货币列表（API 失败时使用） ──────────────────────────
+  var FALLBACK_CURRENCIES = {
+    AUD: 'Australian Dollar', BGN: 'Bulgarian Lev', BRL: 'Brazilian Real',
+    CAD: 'Canadian Dollar', CHF: 'Swiss Franc', CNY: 'Chinese Yuan',
+    CZK: 'Czech Koruna', DKK: 'Danish Krone', EUR: 'Euro',
+    GBP: 'British Pound', HKD: 'Hong Kong Dollar', HUF: 'Hungarian Forint',
+    IDR: 'Indonesian Rupiah', ILS: 'Israeli Shekel', INR: 'Indian Rupee',
+    ISK: 'Icelandic Krona', JPY: 'Japanese Yen', KRW: 'South Korean Won',
+    MXN: 'Mexican Peso', MYR: 'Malaysian Ringgit', NOK: 'Norwegian Krone',
+    NZD: 'New Zealand Dollar', PHP: 'Philippine Peso', PLN: 'Polish Zloty',
+    RON: 'Romanian Leu', SEK: 'Swedish Krona', SGD: 'Singapore Dollar',
+    THB: 'Thai Baht', TRY: 'Turkish Lira', USD: 'US Dollar',
+    ZAR: 'South African Rand',
+  };
+
+  // ─── 全局状态 ────────────────────────────────────────────────
+  var currencies = null; // 加载后缓存
+  var currentRates = null; // Tab 3 用于对比当前汇率
+
+  // ─── 工具函数 ────────────────────────────────────────────────
+
+  function getYesterday() {
+    var d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  }
+
+  function formatNumber(n, decimals) {
+    if (decimals === undefined) { decimals = 4; }
+    if (n === null || n === undefined || isNaN(n)) { return '-'; }
+    return Number(n).toFixed(decimals);
+  }
+
+  function debounce(fn, delay) {
+    var timer;
+    return function () {
+      var context = this;
+      var args = arguments;
+      clearTimeout(timer);
+      timer = setTimeout(function () { fn.apply(context, args); }, delay);
+    };
+  }
+
+  // ─── 货币列表加载 ────────────────────────────────────────────
+
+  function loadCurrencies() {
+    return fetch(API_BASE + '/currencies')
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        currencies = data;
+        return data;
+      })
+      .catch(function () {
+        currencies = FALLBACK_CURRENCIES;
+        return FALLBACK_CURRENCIES;
+      });
+  }
+
+  // ─── CurrencyPicker 工厂函数 ──────────────────────────────────
+
+  function createCurrencyPicker(containerEl, onChange, defaultCurrency) {
+    var selected = defaultCurrency || 'EUR';
+    var open = false;
+
+    // 构建 DOM
+    containerEl.innerHTML = '';
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'relative';
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'w-full flex items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:border-gray-400 transition-colors cursor-pointer';
+    wrapper.appendChild(trigger);
+
+    var triggerContent = document.createElement('span');
+    triggerContent.className = 'text-left truncate';
+    trigger.appendChild(triggerContent);
+
+    var triggerArrow = document.createElement('span');
+    triggerArrow.className = 'text-gray-400 ml-2 shrink-0';
+    triggerArrow.textContent = '▾';
+    trigger.appendChild(triggerArrow);
+
+    var dropdown = document.createElement('div');
+    dropdown.className = 'hidden absolute z-20 left-0 right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-64 overflow-hidden';
+    wrapper.appendChild(dropdown);
+
+    var searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = '搜索货币...';
+    searchInput.className = 'w-full border-0 border-b border-gray-200 px-3 py-2 text-sm outline-none bg-transparent';
+    dropdown.appendChild(searchInput);
+
+    var listContainer = document.createElement('div');
+    listContainer.className = 'overflow-y-auto max-h-52';
+    dropdown.appendChild(listContainer);
+
+    containerEl.appendChild(wrapper);
+
+    // 渲染货币列表
+    function renderList(filter) {
+      filter = (filter || '').toLowerCase();
+      listContainer.innerHTML = '';
+      var codes = Object.keys(currencies || {});
+      var filtered = codes.filter(function (code) {
+        if (!filter) { return true; }
+        var name = currencies[code].toLowerCase();
+        return code.toLowerCase().indexOf(filter) !== -1 || name.indexOf(filter) !== -1;
+      });
+
+      if (!filtered.length) {
+        var empty = document.createElement('div');
+        empty.className = 'px-3 py-4 text-center text-sm text-gray-400';
+        empty.textContent = '无匹配货币';
+        listContainer.appendChild(empty);
+        return;
+      }
+
+      filtered.forEach(function (code) {
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-blue-50 transition-colors cursor-pointer text-left border-0 bg-transparent';
+        if (code === selected) {
+          item.classList.add('bg-blue-50', 'text-blue-700', 'font-medium');
+        }
+
+        var codeSpan = document.createElement('span');
+        codeSpan.className = 'font-mono text-xs text-gray-500 w-10 shrink-0';
+        codeSpan.textContent = code;
+
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'text-gray-700 truncate';
+        nameSpan.textContent = currencies[code] || code;
+
+        item.appendChild(codeSpan);
+        item.appendChild(nameSpan);
+
+        item.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          select(code);
+        });
+
+        listContainer.appendChild(item);
+      });
+    }
+
+    function updateTrigger() {
+      triggerContent.textContent = selected + ' - ' + (currencies ? currencies[selected] || selected : selected);
+    }
+
+    function openDropdown() {
+      open = true;
+      dropdown.classList.remove('hidden');
+      triggerArrow.textContent = '▴';
+      searchInput.value = '';
+      renderList('');
+      setTimeout(function () { searchInput.focus(); }, 50);
+    }
+
+    function closeDropdown() {
+      open = false;
+      dropdown.classList.add('hidden');
+      triggerArrow.textContent = '▾';
+    }
+
+    function select(code) {
+      if (selected !== code) {
+        selected = code;
+        updateTrigger();
+        if (onChange) { onChange(code); }
+      }
+      closeDropdown();
+    }
+
+    // 事件绑定
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (open) { closeDropdown(); } else { openDropdown(); }
+    });
+
+    searchInput.addEventListener('input', function () {
+      renderList(searchInput.value);
+    });
+
+    searchInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { closeDropdown(); trigger.focus(); }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (open && !wrapper.contains(e.target)) { closeDropdown(); }
+    });
+
+    // 初始化
+    updateTrigger();
+
+    // 公共方法
+    return {
+      getValue: function () { return selected; },
+      setValue: function (code) { selected = code; updateTrigger(); },
+      getElement: function () { return wrapper; },
+    };
+  }
+
+  // ─── 通用 helper ──────────────────────────────────────────────
+
+  function showLoading(el) { el.classList.remove('hidden'); }
+  function hideLoading(el) { el.classList.add('hidden'); }
+  function showError(el, msg) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    setTimeout(function () { el.classList.add('hidden'); }, 4000);
+  }
+
+  // ============================================================
+  // TAB SWITCHING
+  // ============================================================
+
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  var tabPanels = {
+    convert: document.getElementById('panelConvert'),
+    compare: document.getElementById('panelCompare'),
+    history: document.getElementById('panelHistory'),
+  };
+
+  tabBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var tab = btn.getAttribute('data-tab');
+      tabBtns.forEach(function (b) {
+        b.classList.remove('bg-blue-600', 'text-white');
+        b.classList.add('bg-transparent', 'text-gray-600', 'hover:bg-gray-100');
+      });
+      btn.classList.add('bg-blue-600', 'text-white');
+      btn.classList.remove('bg-transparent', 'text-gray-600', 'hover:bg-gray-100');
+      Object.keys(tabPanels).forEach(function (k) {
+        tabPanels[k].classList.add('hidden');
+      });
+      tabPanels[tab].classList.remove('hidden');
+    });
+  });
+
+  // ============================================================
+  // TAB 1: 汇率换算
+  // ============================================================
+
+  var convertFromPicker, convertToPicker;
+  var convertFrom = 'EUR';
+  var convertTo = 'CNY';
+
+  var convertAmountEl = document.getElementById('convertAmount');
+  var convertResult = document.getElementById('convertResult');
+  var convertResultRate = document.getElementById('convertResultRate');
+  var convertResultAmount = document.getElementById('convertResultAmount');
+  var convertResultDate = document.getElementById('convertResultDate');
+  var convertLoading = document.getElementById('convertLoading');
+  var convertError = document.getElementById('convertError');
+  var swapBtn = document.getElementById('swapBtn');
+  var clearAmountBtn = document.getElementById('clearAmountBtn');
+
+  function fetchConvertRate() {
+    var amount = parseFloat(convertAmountEl.value);
+    if (isNaN(amount) || amount < 0) {
+      convertResult.classList.add('hidden');
+      return;
+    }
+    if (convertFrom === convertTo) {
+      convertResult.classList.remove('hidden');
+      convertResultRate.textContent = '';
+      convertResultAmount.textContent = amount + ' ' + convertFrom + ' = ' + amount + ' ' + convertTo;
+      convertResultDate.textContent = '源货币与目标货币相同';
+      return;
+    }
+
+    showLoading(convertLoading);
+    convertResult.classList.add('hidden');
+    convertError.classList.add('hidden');
+
+    fetch(API_BASE + '/latest?from=' + convertFrom + '&to=' + convertTo)
+      .then(function (res) {
+        if (!res.ok) { throw new Error('API 请求失败 (' + res.status + ')'); }
+        return res.json();
+      })
+      .then(function (data) {
+        hideLoading(convertLoading);
+        var rate = data.rates[convertTo];
+        // 更新当前汇率缓存（供历史标签页使用）
+        if (!currentRates) { currentRates = {}; }
+        currentRates[convertFrom + '_' + convertTo] = rate;
+        var result = amount * rate;
+        convertResult.classList.remove('hidden');
+        convertResultRate.textContent = '1 ' + convertFrom + ' = ' + formatNumber(rate) + ' ' + convertTo;
+        convertResultAmount.textContent = amount + ' ' + convertFrom + ' = ' + formatNumber(result, 2) + ' ' + convertTo;
+        convertResultDate.textContent = '基于 ' + data.date + ' 实时汇率';
+      })
+      .catch(function (err) {
+        hideLoading(convertLoading);
+        showError(convertError, '请求失败: ' + err.message);
+      });
+  }
+
+  var debouncedConvert = debounce(fetchConvertRate, 300);
+
+  convertAmountEl.addEventListener('input', debouncedConvert);
+  clearAmountBtn.addEventListener('click', function () {
+    convertAmountEl.value = '';
+    convertResult.classList.add('hidden');
+  });
+
+  swapBtn.addEventListener('click', function () {
+    var tmp = convertFrom;
+    convertFrom = convertTo;
+    convertTo = tmp;
+    convertFromPicker.setValue(convertFrom);
+    convertToPicker.setValue(convertTo);
+    fetchConvertRate();
+  });
+
+  // ============================================================
+  // TAB 2: 多币对比
+  // ============================================================
+
+  var compareFromPicker;
+  var compareFrom = 'EUR';
+
+  var compareAmountEl = document.getElementById('compareAmount');
+  var compareSort = document.getElementById('compareSort');
+  var compareFilter = document.getElementById('compareFilter');
+  var compareTableBody = document.getElementById('compareTableBody');
+  var compareLoading = document.getElementById('compareLoading');
+  var compareError = document.getElementById('compareError');
+
+  var allRatesData = null;
+
+  function fetchAllRates() {
+    var amount = parseFloat(compareAmountEl.value);
+    if (isNaN(amount) || amount <= 0) {
+      compareTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-gray-400">请输入有效金额</td></tr>';
+      return;
+    }
+
+    showLoading(compareLoading);
+    compareError.classList.add('hidden');
+
+    fetch(API_BASE + '/latest?from=' + compareFrom)
+      .then(function (res) {
+        if (!res.ok) { throw new Error('API 请求失败 (' + res.status + ')'); }
+        return res.json();
+      })
+      .then(function (data) {
+        hideLoading(compareLoading);
+        allRatesData = data.rates;
+        renderCompareTable();
+      })
+      .catch(function (err) {
+        hideLoading(compareLoading);
+        showError(compareError, '请求失败: ' + err.message);
+      });
+  }
+
+  function renderCompareTable() {
+    if (!allRatesData) { return; }
+    var amount = parseFloat(compareAmountEl.value) || 1;
+    var filterStr = (compareFilter.value || '').toLowerCase();
+    var sortBy = compareSort.value;
+
+    var entries = Object.keys(allRatesData).map(function (code) {
+      return {
+        code: code,
+        name: currencies ? currencies[code] || code : code,
+        rate: allRatesData[code],
+        result: amount * allRatesData[code],
+      };
+    });
+
+    // 排序
+    if (sortBy === 'name') {
+      entries.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    } else {
+      entries.sort(function (a, b) { return a.code.localeCompare(b.code); });
+    }
+
+    // 筛选
+    if (filterStr) {
+      entries = entries.filter(function (e) {
+        return e.code.toLowerCase().indexOf(filterStr) !== -1 ||
+               e.name.toLowerCase().indexOf(filterStr) !== -1;
+      });
+    }
+
+    if (!entries.length) {
+      compareTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-gray-400">无匹配结果</td></tr>';
+      return;
+    }
+
+    compareTableBody.innerHTML = entries.map(function (e) {
+      return '<tr class="border-t border-gray-100 hover:bg-gray-50 transition-colors">' +
+        '<td class="px-3 py-2 text-gray-700">' + e.name + '</td>' +
+        '<td class="px-3 py-2 font-mono text-xs text-gray-500">' + e.code + '</td>' +
+        '<td class="px-3 py-2 text-right font-mono text-gray-900">' + formatNumber(e.result, 2) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  var debouncedCompare = debounce(fetchAllRates, 300);
+
+  compareAmountEl.addEventListener('input', debouncedCompare);
+  compareSort.addEventListener('change', renderCompareTable);
+  compareFilter.addEventListener('input', renderCompareTable);
+
+  // ============================================================
+  // TAB 3: 历史汇率
+  // ============================================================
+
+  var historyFromPicker, historyToPicker;
+  var historyFrom = 'EUR';
+  var historyTo = 'CNY';
+
+  var historyDateEl = document.getElementById('historyDate');
+  var historyResult = document.getElementById('historyResult');
+  var historyResultRate = document.getElementById('historyResultRate');
+  var historyResultCompare = document.getElementById('historyResultCompare');
+  var historyAmountEl = document.getElementById('historyAmount');
+  var historyAmountResult = document.getElementById('historyAmountResult');
+  var historyLoading = document.getElementById('historyLoading');
+  var historyError = document.getElementById('historyError');
+  var historySwapBtn = document.getElementById('historySwapBtn');
+
+  historyDateEl.value = getYesterday();
+  historyDateEl.max = getYesterday();
+
+  function fetchHistoryRate() {
+    var date = historyDateEl.value;
+    if (!date) { return; }
+
+    var today = new Date().toISOString().split('T')[0];
+    if (date > today) {
+      showError(historyError, '无法查询未来日期');
+      return;
+    }
+
+    if (historyFrom === historyTo) {
+      historyResult.classList.remove('hidden');
+      historyResultRate.textContent = date + ' 1 ' + historyFrom + ' = 1 ' + historyTo;
+      historyResultCompare.textContent = '源货币与目标货币相同';
+      historyAmountResult.classList.add('hidden');
+      return;
+    }
+
+    showLoading(historyLoading);
+    historyResult.classList.add('hidden');
+    historyError.classList.add('hidden');
+
+    fetch(API_BASE + '/' + date + '?from=' + historyFrom + '&to=' + historyTo)
+      .then(function (res) {
+        if (!res.ok) { throw new Error('API 请求失败 (' + res.status + ')'); }
+        return res.json();
+      })
+      .then(function (data) {
+        hideLoading(historyLoading);
+        var rate = data.rates[historyTo];
+        historyResult.classList.remove('hidden');
+        historyResultRate.textContent = date + ' 1 ' + historyFrom + ' = ' + formatNumber(rate) + ' ' + historyTo;
+
+        // 对比当前汇率
+        var currentRate = currentRates ? currentRates[historyFrom + '_' + historyTo] : null;
+        if (currentRate !== null && currentRate !== undefined) {
+          var diff = ((rate - currentRate) / currentRate * 100);
+          var arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '─');
+          var color = diff > 0 ? 'text-green-600' : (diff < 0 ? 'text-red-600' : 'text-gray-500');
+          historyResultCompare.innerHTML = '当前汇率: 1 ' + historyFrom + ' = ' + formatNumber(currentRate) + ' ' + historyTo +
+            ' <span class="font-medium ' + color + '">(' + arrow + ' ' + formatNumber(Math.abs(diff), 2) + '%)</span>';
+        } else {
+          historyResultCompare.textContent = '切换到换算标签页获取当前汇率对比';
+        }
+
+        // 可选金额换算
+        var histAmount = parseFloat(historyAmountEl.value);
+        if (!isNaN(histAmount) && histAmount > 0) {
+          historyAmountResult.classList.remove('hidden');
+          historyAmountResult.textContent = histAmount + ' ' + historyFrom + ' = ' + formatNumber(histAmount * rate, 2) + ' ' + historyTo;
+        } else {
+          historyAmountResult.classList.add('hidden');
+        }
+      })
+      .catch(function (err) {
+        hideLoading(historyLoading);
+        showError(historyError, '请求失败: ' + err.message);
+      });
+  }
+
+  historyDateEl.addEventListener('change', fetchHistoryRate);
+  historyAmountEl.addEventListener('input', function () {
+    fetchHistoryRate();
+  });
+
+  historySwapBtn.addEventListener('click', function () {
+    var tmp = historyFrom;
+    historyFrom = historyTo;
+    historyTo = tmp;
+    historyFromPicker.setValue(historyFrom);
+    historyToPicker.setValue(historyTo);
+    fetchHistoryRate();
+  });
+
+  // ============================================================
+  // 初始化
+  // ============================================================
+
+  loadCurrencies().then(function () {
+    convertFromPicker = createCurrencyPicker(
+      document.getElementById('convertFromPicker'),
+      function (code) { convertFrom = code; debouncedConvert(); },
+      'EUR'
+    );
+    convertToPicker = createCurrencyPicker(
+      document.getElementById('convertToPicker'),
+      function (code) { convertTo = code; debouncedConvert(); },
+      'CNY'
+    );
+
+    compareFromPicker = createCurrencyPicker(
+      document.getElementById('compareFromPicker'),
+      function (code) { compareFrom = code; debouncedCompare(); },
+      'EUR'
+    );
+
+    historyFromPicker = createCurrencyPicker(
+      document.getElementById('historyFromPicker'),
+      function (code) { historyFrom = code; fetchHistoryRate(); },
+      'EUR'
+    );
+    historyToPicker = createCurrencyPicker(
+      document.getElementById('historyToPicker'),
+      function (code) { historyTo = code; fetchHistoryRate(); },
+      'CNY'
+    );
+
+    // 初始加载
+    fetchConvertRate();
+  });
+</script>
