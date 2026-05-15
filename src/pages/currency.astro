@@ -497,7 +497,7 @@ import Layout from '../layouts/Layout.astro';
   }
 
   function renderCompareTable() {
-    if (!allRatesData) { return; }
+    if (!allRatesData || typeof allRatesData !== 'object') { return; }
     var amount = parseFloat(compareAmountEl.value) || 1;
     var filterStr = (compareFilter.value || '').toLowerCase();
     var sortBy = compareSort.value;
@@ -627,10 +627,10 @@ import Layout from '../layouts/Layout.astro';
       });
   }
 
+  var debouncedHistoryAmount = debounce(function () { fetchHistoryRate(); }, 300);
+
   historyDateEl.addEventListener('change', fetchHistoryRate);
-  historyAmountEl.addEventListener('input', function () {
-    fetchHistoryRate();
-  });
+  historyAmountEl.addEventListener('input', debouncedHistoryAmount);
 
   historySwapBtn.addEventListener('click', function () {
     var tmp = historyFrom;
